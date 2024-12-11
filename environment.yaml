@@ -17,13 +17,12 @@ dependencies:
       - opencv-contrib-python
       - imageio==2.9.0
       - imageio-ffmpeg==0.4.2
-      - torchmetrics==1.6.0
       - pytorch-lightning==1.9.0
       - omegaconf==2.3.0
       - test-tube>=0.7.5
       - streamlit==1.12.1
       - einops==0.6.0
-      - transformers==4.36.2
+      - transformers==4.46.2
       - webdataset==0.2.5
       - kornia==0.6
       - open_clip_torch==2.16.0
@@ -67,4 +66,5 @@ dependencies:
       - trimesh==3.9.24
       - h5py
       - spacy==3.7.0
+      - torchmetrics==0.7.0
       # - ftfy

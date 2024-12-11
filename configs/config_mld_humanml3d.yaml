@@ -52,7 +52,7 @@ EVAL:
 # The following are testing settings
 #####################################
 TEST:
-  CHECKPOINTS: ./models/mld_humanml3d_checkpoint/1222_mld_humanml3d_FID041.ckpt # Pretrained model path
+  CHECKPOINTS: ./checkpoints/mld_humanml3d_checkpoint/1222_mld_humanml3d_FID041.ckpt # Pretrained model path
   DATASETS: ['humanml3d'] # training datasets
   SPLIT: test
   BATCH_SIZE: 1 # training Batch size

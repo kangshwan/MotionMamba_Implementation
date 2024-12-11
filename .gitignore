@@ -199,3 +199,5 @@ assets/*
 !assets/*.png
 workdir/*
 datasets/*
+experiments/*
+results/*
