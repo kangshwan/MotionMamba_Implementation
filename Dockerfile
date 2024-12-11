@@ -51,6 +51,9 @@ RUN conda env update -n base --file /root/environment.yaml
 RUN conda install -n base chardet && \
     CAUSAL_CONV1D_FORCE_BUILD=TRUE pip install --user -e .
 
+# CRLF 줄바꿈 제거
+RUN find prepare -type f -name "*.sh" -exec sed -i 's/\r$//' {} \;
+
 # Install Dependencies
 RUN bash prepare/download_smpl_model.sh
 RUN bash prepare/prepare_clip.sh
