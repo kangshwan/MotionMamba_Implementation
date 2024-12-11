@@ -3,36 +3,66 @@
 ## Overview
 This repository provides an implementation of the **Motion Mamba** paper. The work draws significant inspiration from the key ideas and codebases of several related projects, as detailed below.
 
+---
 
 ## Inspired by
-- [Mamba](https://github.com/state-spaces/mamba): A state-space model-based architecture.
-- [MLD (Motion Latent Diffusion)](https://github.com/ChenFengYe/motion-latent-diffusion): A diffusion-based approach for motion generation.
-- [DiM (Diffusion Mamba)](https://github.com/tyshiwo1/DiM-DiffusionMamba?tab=readme-ov-file): A diffusion-based approach for image generation.
-- [ViM (Vision Mamba)](https://github.com/hustvl/Vim): A Vision Transformer-inspired variant of Mamba.
-- [Motion Mamba](https://github.com/steve-zeyu-zhang/MotionMamba/): The official repository for the Motion Mamba paper.
+- [Mamba](https://github.com/state-spaces/mamba): A state-space model-based architecture, licensed under Apache License 2.0.
+- [MLD (Motion Latent Diffusion)](https://github.com/ChenFengYe/motion-latent-diffusion): A diffusion-based approach for motion generation, licensed under MIT License.
+- [DiM (Diffusion Mamba)](https://github.com/tyshiwo1/DiM-DiffusionMamba?tab=readme-ov-file): A diffusion-based approach for image generation. Note: This repository does not provide an explicit license.
+- [ViM (Vision Mamba)](https://github.com/hustvl/Vim): A Vision Transformer-inspired variant of Mamba, licensed under Apache License 2.0.
+- [Motion Mamba](https://github.com/steve-zeyu-zhang/MotionMamba/): The official repository for the Motion Mamba paper. Note: This repository does not provide an explicit license.
 
 ---
 
 ## Key Contributions
-1. **Mamba Block Construction**: This repository combines the **Mamba Block design approach from the DiM paper** with **code implementation techniques from the ViM paper** to construct Mamba Blocks effectively.
-2. **Training Pipeline**: The training process integrates the methodologies introduced in the MLD paper for motion generation.
-3. **Code Integration**: All implementations are grounded in the methodologies and insights provided by the referenced papers.
+1. **Mamba Block Construction**:
+   - Combines the **Mamba Block design approach from the DiM paper** with **code implementation techniques from the ViM paper**.
+   - Ensures compliance with the Apache License 2.0 as required by Mamba and ViM.
+
+2. **Training Pipeline**:
+   - The training process integrates methodologies introduced in the **MLD paper**, which is licensed under MIT License.
+
+3. **Code Integration**:
+   - All code is developed with respect to the licenses and intellectual property of the referenced repositories.
 
 ---
 
-### **Note**
-This repository extensively references the original research and associated codebases to faithfully re-implement the Motion Mamba architecture.
+## License
+
+This project is licensed under:
+- **Apache License 2.0**: Applies to portions of the code derived from [Mamba](https://github.com/state-spaces/mamba) and [ViM](https://github.com/hustvl/Vim).
+- **MIT License**: Applies to portions of the code derived from [MLD](https://github.com/ChenFengYe/motion-latent-diffusion).
+
+### Legal Notes:
+1. Portions of this project are inspired by [DiM (Diffusion Mamba)](https://github.com/tyshiwo1/DiM-DiffusionMamba) and [Motion Mamba](https://github.com/steve-zeyu-zhang/MotionMamba). However, neither repository provides an explicit license. As such, no direct reuse of their code has been made unless explicitly permitted by the respective authors.
+2. If you plan to use or redistribute this code, ensure compliance with the licenses of the referenced projects.
+
+Refer to the `LICENSE` file for full license details.
+
+---
+
+## Acknowledgments
+
+This project builds upon the ideas and implementations from the following repositories:
+- [Mamba](https://github.com/state-spaces/mamba): Apache License 2.0.
+- [ViM (Vision Mamba)](https://github.com/hustvl/Vim): Derived from Mamba, Apache License 2.0.
+- [MLD (Motion Latent Diffusion)](https://github.com/ChenFengYe/motion-latent-diffusion): MIT License.
+- [DiM (Diffusion Mamba)](https://github.com/tyshiwo1/DiM-DiffusionMamba): No explicit license provided.
+- [Motion Mamba](https://github.com/steve-zeyu-zhang/MotionMamba): Official repository for the Motion Mamba paper, no explicit license provided.
+
+We sincerely thank the authors of these projects for their groundbreaking work and inspiration.
 
 ---
 
 ## Requirements
-This implementation heavily relies on the requirements of the DiM project.
 
-1. **Install DiM Dependencies**: Follow the installation steps provided in the [DiM repository](https://github.com/tyshiwo1/DiM-DiffusionMamba?tab=readme-ov-file).
+This implementation heavily relies on the requirements of the DiM and MLD projects.
+
+1. **Install DiM Dependencies**: Follow the installation steps provided in the [DiM repository](https://github.com/tyshiwo1/DiM-DiffusionMamba).
 
 2. **Install Additional Dependencies**: Use the provided `requirements.txt` file in this repository to install additional dependencies required for the [MLD](https://github.com/ChenFengYe/motion-latent-diffusion)-based training pipeline.
 
-   Additionally, `causal-conv1d` is pinned to version **1.1.1** to address specific issues in Mamba's implementation. For more details, refer to [ViM Issue#41](https://github.com/hustvl/Vim/issues/41).
+   - Additionally, `causal-conv1d` is pinned to version **1.1.1** to address specific issues in Mamba's implementation. For more details, refer to [ViM Issue#41](https://github.com/hustvl/Vim/issues/41).
 
 3. **Download Required Resources**: Run the following scripts to download necessary files and dependencies for [MLD (Motion Latent Diffusion)](https://github.com/ChenFengYe/motion-latent-diffusion):
    - For **MLD dependencies**:
@@ -45,7 +75,15 @@ This implementation heavily relies on the requirements of the DiM project.
      bash prepare/download_t2m_evaluators.sh
      ```
 
-All process is run at Linux, NVIDIA GPU, PyTorch = 2.1.1
+---
+
+
+## System Requirements
+
+- **Operating System**: Linux
+- **Hardware**: NVIDIA GPU
+- **Framework**: PyTorch 2.1.1
+
 <br>
 <br>
 <br>
