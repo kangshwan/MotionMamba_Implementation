@@ -1,0 +1,11 @@
+causal-conv1d==1.1.1
+chumpy
+psutil
+yacs
+rich
+smplx==0.1.28
+trimesh==3.9.24
+h5py
+joblib==1.2.0
+spacy==3.7.0
+ftfy
