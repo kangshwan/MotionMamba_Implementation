@@ -13,13 +13,13 @@ RUN apt-get update && \
     apt-get remove --yes --purge --autoremove equivs && \
     rm -rf /var/lib/apt/lists/*
 
-#RUN apt-get update && \
+# RUN apt-get update && \
 
 # 기본 패키지 업데이트 및 필수 패키지 설치
 RUN apt-get update && apt-get install build-essential -y
 
 RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y curl sudo gnupg wget software-properties-common libgl1-mesa-dev git && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y curl sudo gnupg wget software-properties-common libgl1-mesa-dev git tree vim && \
     rm -rf /var/lib/apt/lists/*
 
 COPY . /root/
@@ -44,7 +44,7 @@ ENV PATH=/opt/conda/bin:$PATH
 RUN conda install -n base -c defaults python=3.9 && \
     conda install -n base pytorch=2.1.1 torchvision pytorch-cuda=11.8 -c pytorch -c nvidia
 
-# 관련 라이브러리 설치 
+# 관련 라이브러리 설치      
 RUN conda env update -n base --file /root/environment.yaml
 
 # 추가 라이브러리 설치 및 빌드
@@ -56,7 +56,7 @@ RUN find prepare -type f -name "*.sh" -exec sed -i 's/\r$//' {} \;
 
 # Install Dependencies
 RUN bash prepare/download_smpl_model.sh
-RUN bash prepare/prepare_clip.sh
+RUN bash prepare/prepare_clip_for_docker.sh
 
 RUN bash prepare/download_t2m_evaluators.sh
 

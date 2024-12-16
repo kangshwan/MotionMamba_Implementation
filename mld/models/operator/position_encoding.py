@@ -154,6 +154,7 @@ class PositionEmbeddingLearned1D(nn.Module):
         # not used in the final model
         if self.batch_first:
             pos = self.pe.permute(1, 0, 2)[:, :x.shape[1], :]
+            x = x + pos
         else:
             x = x + self.pe[:x.shape[0], :]
         return x
@@ -162,13 +163,14 @@ class PositionEmbeddingLearned1D(nn.Module):
 
 def build_position_encoding(N_steps,
                             position_embedding="sine",
-                            embedding_dim="1D"):
+                            embedding_dim="1D",
+                            batch_first=False):
     # N_steps = hidden_dim // 2
     if embedding_dim == "1D":
         if position_embedding in ('v2', 'sine'):
             position_embedding = PositionEmbeddingSine1D(N_steps)
         elif position_embedding in ('v3', 'learned'):
-            position_embedding = PositionEmbeddingLearned1D(N_steps)
+            position_embedding = PositionEmbeddingLearned1D(N_steps, batch_first=batch_first)
         else:
             raise ValueError(f"not supported {position_embedding}")
     elif embedding_dim == "2D":

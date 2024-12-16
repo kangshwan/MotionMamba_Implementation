@@ -29,7 +29,9 @@ class MLDLosses(Metric):
         if self.stage in ['diffusion', 'vae_diffusion']:
             # instance noise loss
             losses.append("inst_loss")
-            losses.append("x_loss")
+            if not self.predict_epsilon:
+                losses.append("x_loss")
+                
             if self.cfg.LOSS.LAMBDA_PRIOR != 0.0:
                 # prior noise loss
                 losses.append("prior_loss")

@@ -74,14 +74,30 @@ def main():
             log_model=False,
         )
         loggers.append(wandb_logger)
+
+    if cfg.LOGGER.NEPTUNE.PROJECT:
+        with open(cfg.LOGGER.NEPTUNE.API_KEY, 'r') as file:
+            api_key = file.read().strip()
+        file.close()
+        # neptune으로 변경
+        neptune_logger = pl_loggers.NeptuneLogger(
+            project=cfg.LOGGER.NEPTUNE.PROJECT,
+            api_key=api_key,  # WANDB API Key 추가 필요
+            name=cfg.NAME,
+            # with_id = cfg.LOGGER.NEPTUNE.RESUME_ID
+            # offline_mode=cfg.LOGGER.WANDB.OFFLINE,  # offline 대신 offline_mode로 사용
+        )
+        loggers.append(neptune_logger)
+    
     if cfg.LOGGER.TENSORBOARD:
         tb_logger = pl_loggers.TensorBoardLogger(save_dir=cfg.FOLDER_EXP,
                                                  sub_dir="tensorboard",
                                                  version="",
                                                  name="")
         loggers.append(tb_logger)
-    logger.info(OmegaConf.to_yaml(cfg))
-
+    
+    # logger.info(OmegaConf.to_yaml(cfg.model))
+    
     # create dataset
     datasets = get_datasets(cfg, logger=logger)
     logger.info("datasets module {} initialized".format("".join(
@@ -151,7 +167,9 @@ def main():
         default_root_dir=cfg.FOLDER_EXP,
         log_every_n_steps=cfg.LOGGER.VAL_EVERY_STEPS,
         deterministic=False,
-        detect_anomaly=False,
+        # detect_anomaly=False,
+        detect_anomaly=True,
+        gradient_clip_val=1.0,
         enable_progress_bar=True,
         logger=loggers,
         callbacks=callbacks,

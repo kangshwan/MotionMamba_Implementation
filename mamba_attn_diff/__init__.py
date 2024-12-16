@@ -1,1 +1,1 @@
-from mamba_attn_diff.models.mamba_module import HTM, BSM, MotionMambaBlock, MotionMamba
+from mamba_attn_diff.models.motion_mamba1 import MotionMamba

@@ -131,7 +131,7 @@ class MldDenoiser(nn.Module):
             )
         else:
             raise ValueError(f"Not supported architechure{self.arch}!")
-
+        
     def forward(self,
                 sample,
                 timestep,

@@ -32,7 +32,7 @@ dependencies:
       - addict==2.4.0
       - yapf==0.32.0
       - prettytable==3.6.0
-      - safetensors==0.3.1
+      - safetensors==0.4.5
       - basicsr==1.4.2
       - accelerate==0.17.0
       - decord==0.6.0
@@ -67,4 +67,5 @@ dependencies:
       - h5py
       - spacy==3.7.0
       - torchmetrics==0.7.0
+      - neptune-client
       # - ftfy

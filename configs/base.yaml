@@ -2,6 +2,7 @@
 SEED_VALUE: 1234
 DEBUG: True
 TRAIN:
+  # 여기 바꿨다 승환아 안바꾸면 학습 망한다
   SPLIT: 'train'
   NUM_WORKERS: 2 # Number of workers
   BATCH_SIZE: 4 # Size of batches
@@ -37,7 +38,7 @@ TEST:
   SPLIT: 'gtest'
   BATCH_SIZE: 1 # Testing Batch size
   NUM_WORKERS: 12 # Evaluating Batch size
-  SAVE_PREDICTIONS: False # Weather to save predictions
+  SAVE_PREDICTIONS: True # Weather to save predictions  # 2024/11/25 변경함 False->True 
   COUNT_TIME: False # Weather to count time during test
   REPLICATION_TIMES: 20 # Number of times to replicate the test
   MM_NUM_SAMPLES: 100 # Number of samples for multimodal test
@@ -127,3 +128,4 @@ DEMO:
   RENDER: false
   FRAME_RATE: 12.5
   EXAMPLE: null
+  

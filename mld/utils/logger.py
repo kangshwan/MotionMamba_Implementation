@@ -1,6 +1,6 @@
 from pathlib import Path
 import os
-import time
+from datetime import datetime, timezone, timedelta
 import logging
 from omegaconf import OmegaConf
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
@@ -21,7 +21,9 @@ def create_logger(cfg, phase='train'):
     final_output_dir = root_output_dir / model / cfg_name
     cfg.FOLDER_EXP = str(final_output_dir)
 
-    time_str = time.strftime('%Y-%m-%d-%H-%M-%S')
+    kst = timezone(timedelta(hours=9))
+    current_time = datetime.now(kst)
+    time_str = current_time.strftime('%Y-%m-%d-%H-%M-%S')
 
     new_dir(cfg, phase, time_str, final_output_dir)
 

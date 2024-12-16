@@ -34,6 +34,37 @@ except ImportError:
 from copy import deepcopy
 
 
+
+import inspect
+import os
+from mld.transforms.rotation2xyz import Rotation2xyz
+import numpy as np
+import torch
+from torch import Tensor
+from torch.optim import AdamW
+from torchmetrics import MetricCollection
+import time
+from mld.config import instantiate_from_config
+from os.path import join as pjoin
+from mld.models.architectures import (
+    mld_denoiser,
+    mld_vae,
+    vposert_vae,
+    t2m_motionenc,
+    t2m_textenc,
+    vposert_vae,
+)
+from mld.models.losses.mld import MLDLosses
+from mamba_attn_diff.models.base import BaseModel
+from mld.utils.temos_utils import remove_padding
+
+from mld.models.architectures.tools.embeddings import (TimestepEmbedding,
+                                                       Timesteps)
+
+from mld.models.operator.position_encoding import build_position_encoding
+from mld.utils.temos_utils import lengths_to_mask
+
+
 class HTM(nn.Module):
     def __init__(
         self,
@@ -180,10 +211,10 @@ class HTM(nn.Module):
         if self.in_proj.bias is not None:
             xz = xz + rearrange(self.in_proj.bias.to(dtype=xz.dtype), "d -> d 1")
         # print('xz.shape', xz.shape)
-
+        flag = False
         if self.use_fast_path and causal_conv1d_fn is not None and inference_params is None:  # Doesn't support outputting the states
             outputs = []
-            for dt_proj, conv1d, A_log, D in zip(self.dt_projs, self.conv1ds, self.A_logs, self.Ds):
+            for idx, (dt_proj, conv1d, A_log, D )in enumerate(zip(self.dt_projs, self.conv1ds, self.A_logs, self.Ds)):
                 A = -torch.exp(A_log.float()) 
                 out = mamba_inner_fn_no_out_proj(
                     xz,
@@ -224,6 +255,7 @@ class HTM(nn.Module):
                 print('##### out.shape #####')
                 print(out.shape)
                 print(f"torch.Size([B,  T,  D])")
+
             return out
         else:
             x, z = xz.chunk(2, dim=1)
@@ -302,7 +334,7 @@ class HTM(nn.Module):
                 print('out.shape: ', out.shape)
                 print(f'B: {out.shape[0]}, L/T: {out.shape[1]}, E: {out.shape[2]} ')
             return out
-
+        
     def step(self, hidden_states, conv_state, ssm_state):
         dtype = hidden_states.dtype
         assert hidden_states.shape[1] == 1, "Only support decoding with 1 token at a time for now"
@@ -453,9 +485,10 @@ class BSM(nn.Module):
         if init_layer_scale is not None:
             self.gamma = nn.Parameter(init_layer_scale * torch.ones((self.d_temporal)), requires_grad=True)
 
-        self.norm = (nn.LayerNorm if not rms_norm else RMSNorm)(
-            self.d_temporal, eps=norm_epsilon, **factory_kwargs
-        )
+        if d_temporal != 1:
+            self.norm = (nn.LayerNorm if not rms_norm else RMSNorm)(
+                self.d_temporal, eps=norm_epsilon, **factory_kwargs
+            )
         self.in_proj = nn.Linear(self.d_temporal, self.d_inner * 2, bias=bias, **factory_kwargs)
 
         self.conv1d = nn.Conv1d(
@@ -543,9 +576,10 @@ class BSM(nn.Module):
 
         self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. else nn.Identity()
 
-        self.norm_f = (nn.LayerNorm if not rms_norm else RMSNorm)(
-            self.d_temporal, eps=norm_epsilon, **factory_kwargs
-        )
+        if d_temporal != 1:
+            self.norm_f = (nn.LayerNorm if not rms_norm else RMSNorm)(
+                self.d_temporal, eps=norm_epsilon, **factory_kwargs
+            )
 
     def forward(self, hidden_states, inference_params=None):
         """
@@ -566,17 +600,21 @@ class BSM(nn.Module):
             print(hidden_states.shape)
             print(f"torch.Size([B,  D,  T])")
 
-        init_fused_add_norm_fn = rms_norm_fn if isinstance(self.norm, RMSNorm) else layer_norm_fn
-        # residual: hidden_state
-        hidden_states, residual = init_fused_add_norm_fn(
-            hidden_states,
-            self.norm.weight,
-            self.norm.bias,
-            residual=None,
-            prenorm=True,
-            residual_in_fp32=self.residual_in_fp32,
-            eps=self.norm.eps,
-        )
+        if self.d_temporal != 1:
+            init_fused_add_norm_fn = rms_norm_fn if isinstance(self.norm, RMSNorm) else layer_norm_fn
+            # residual: hidden_state
+            hidden_states, residual = init_fused_add_norm_fn(
+                hidden_states,
+                self.norm.weight,
+                self.norm.bias,
+                residual=None,
+                prenorm=True,
+                residual_in_fp32=self.residual_in_fp32,
+                eps=self.norm.eps,
+            )
+        else:
+            residual = hidden_states
+
         conv_state, ssm_state = None, None
         if inference_params is not None:
             conv_state, ssm_state = self._get_states_from_cache(inference_params, batch)
@@ -701,17 +739,19 @@ class BSM(nn.Module):
             print("##### Output shape #####")
             print(out.shape)
             print(f"torch.Size([B,  D,  T])")
-
-        fused_add_norm_fn = rms_norm_fn if isinstance(self.norm_f, RMSNorm) else layer_norm_fn
-        out = fused_add_norm_fn(
-            self.drop_path(out),
-            self.norm_f.weight,
-            self.norm_f.bias,
-            eps=self.norm_f.eps,
-            residual=residual,
-            prenorm=False,
-            residual_in_fp32=self.residual_in_fp32,
-        )
+        if self.d_temporal != 1:
+            fused_add_norm_fn = rms_norm_fn if isinstance(self.norm_f, RMSNorm) else layer_norm_fn
+            out = fused_add_norm_fn(
+                self.drop_path(out),
+                self.norm_f.weight,
+                self.norm_f.bias,
+                eps=self.norm_f.eps,
+                residual=residual,
+                prenorm=False,
+                residual_in_fp32=self.residual_in_fp32,
+            )
+        else:
+            out = out + residual
         if self.log:
             print("##### After Add residual #####")
             print(out.shape)
@@ -933,9 +973,11 @@ class MotionMambaBlock(nn.Module):
             print(f"torch.Size([B,  T,  D])")
         
         hidden_states = self.htm(hidden_states)
+        
         hidden_states = self.bsm(hidden_states)
         
         out = hidden_states * gate
+
         if self.log:
             print("##### Final Output.shape #####")
             print(out.shape)
@@ -1003,41 +1045,51 @@ class MotionMambaBlock(nn.Module):
         return super_result
 
 
-class MotionMamba(nn.Module):
-    def __init__(
-        self,
-        d_model,
-        d_temporal,
-        d_state=16,
-        d_conv=4,
-        expand=2,
-        nhead = 4,
-        dt_rank="auto",
-        dt_min=0.001,
-        dt_max=0.1,
-        dt_init="random",
-        dt_scale=1.0,
-        dt_init_floor=1e-4,
-        drop_rate=0.,
-        drop_path_rate=0.1,
-        norm_epsilon: float = 1e-5, 
-        rms_norm: bool = True, 
-        residual_in_fp32: bool = True,
-        conv_bias=True,
-        bias=False,
-        use_fast_path=True,  # Fused kernel options
-        layer_idx=None,
-        device=None,
-        dtype=None,
-        num_layer=1, # value k
-        if_divide_out=False,
-        init_layer_scale=None,
-        aggregate='concat_linear', # 'sum', 'concat_linear'
-        log = False,
-        **kwargs
+class MotionMambaDenoiser(nn.Module):
+    def __init__(self,
+                 ablation,
+                 d_model,
+                 d_temporal,
+                 d_state=16,
+                 d_conv=4,
+                 expand=2,
+                 num_heads = 4,
+                 dt_rank="auto",
+                 dt_min=0.001,
+                 dt_max=0.1,
+                 dt_init="random",
+                 dt_scale=1.0,
+                 dt_init_floor=1e-4,
+                 drop_rate=0.,
+                 dropout=0.1,
+                 norm_epsilon: float = 1e-5, 
+                 rms_norm: bool = True, 
+                 residual_in_fp32: bool = True,
+                 conv_bias=True,
+                 bias=False,
+                 use_fast_path=True,  # Fused kernel options
+                 layer_idx=None,
+                 device=None,
+                 dtype=None,
+                 num_layers=1, # value k
+                 if_divide_out=False,
+                 init_layer_scale=None,
+                 aggregate='concat_linear', # 'sum', 'concat_linear'
+                 log = False,
+                 condition: str="text",
+                 flip_sin_to_cos: bool = True,
+                 position_embedding: str = "learned",
+                 freq_shift: int = 0,
+                 text_encoded_dim: int=768,
+                 nclasses: int = 10,
+                 **kwargs
     ):
-        factory_kwargs = {"device": device, "dtype": dtype}
+        factory_kwargs = {"device": torch.device('cuda') if device=='gpu' else torch.device('cpu'), 
+                          "dtype": torch.float32 if dtype=='fp32' else None}
+        device = factory_kwargs['device']
+        dtype = factory_kwargs['dtype']
         super().__init__()
+        self.latent_dim = d_model
         self.d_model = d_model
         self.d_temporal = d_temporal
         self.d_state = d_state
@@ -1051,20 +1103,42 @@ class MotionMamba(nn.Module):
         self.dt_scale = dt_scale
         self.dt_init_floor = dt_init_floor
         self.drop_rate = drop_rate
-        self.drop_path_rate = drop_path_rate
+        self.dropout = dropout
         self.rmsnorm = rms_norm
         self.residual_in_fp32 = residual_in_fp32
         self.conv_bias = conv_bias
         self.bias = bias
         self.use_fast_path = use_fast_path
         self.layer_idx = layer_idx
-        self.num_layer = num_layer
+        self.num_layers = num_layers
         self.aggregate = aggregate
         self.if_divide_out = if_divide_out
         self.init_layer_scale = init_layer_scale
+        self.condition = condition
+        self.pe_type = ablation.DIFF_PE_TYPE
+        self.text_encoded_dim = text_encoded_dim
+
+        if self.condition in ["text", "text_uncond"]:
+            # text condition
+            # project time from text_encoded_dim to latent_dim
+            self.time_proj = Timesteps(text_encoded_dim, flip_sin_to_cos,
+                                       freq_shift)
+            self.time_embedding = TimestepEmbedding(text_encoded_dim,
+                                                    self.latent_dim)
+            # project time+text to latent_dim
+            if text_encoded_dim != self.latent_dim:
+                # todo 10.24 debug why relu
+                self.emb_proj = nn.Sequential(
+                    nn.ReLU(), nn.Linear(text_encoded_dim, self.latent_dim))
+
+        if self.pe_type == "mld":
+            self.query_pos = build_position_encoding(
+                self.latent_dim, position_embedding=position_embedding, batch_first=True)
+            self.mem_pos = build_position_encoding(
+                self.latent_dim, position_embedding=position_embedding, batch_first=True)
         
         self.norms = nn.ModuleList(
-            [(nn.LayerNorm if not rms_norm else RMSNorm)(self.d_model, eps=norm_epsilon, **factory_kwargs) for _ in range(self.num_layer)]
+            [(nn.LayerNorm if not rms_norm else RMSNorm)(self.d_model, eps=norm_epsilon, **factory_kwargs) for _ in range(self.num_layers)]
         )
 
         self.encs = nn.ModuleList(
@@ -1081,7 +1155,7 @@ class MotionMamba(nn.Module):
                 dt_scale,
                 dt_init_floor,
                 drop_rate,
-                drop_path_rate,
+                dropout,
                 norm_epsilon,
                 rms_norm,
                 residual_in_fp32,
@@ -1098,10 +1172,10 @@ class MotionMamba(nn.Module):
                 log,
                 **kwargs
 
-            ) for k in range(self.num_layer, 0, -1)]
+            ) for k in range(self.num_layers, 0, -1)]
         )
         
-        self.mixer = nn.MultiheadAttention(self.d_model, nhead, dropout=drop_path_rate)
+        self.mixer = nn.MultiheadAttention(self.d_model, num_heads, dropout=self.dropout, batch_first=True)
         
         self.decs = nn.ModuleList(
             [MotionMambaBlock(
@@ -1117,7 +1191,7 @@ class MotionMamba(nn.Module):
                 dt_scale,
                 dt_init_floor,
                 drop_rate,
-                drop_path_rate,
+                dropout,
                 norm_epsilon,
                 rms_norm,
                 residual_in_fp32,
@@ -1134,35 +1208,63 @@ class MotionMamba(nn.Module):
                 log,
                 **kwargs
 
-            ) for k in range(1, self.num_layer+1)]
+            ) for k in range(1, self.num_layers+1)]
         )
         
-        self.drop_path = DropPath(drop_path_rate) if drop_path_rate > 0. else nn.Identity()
-
-    def forward(self, input, context=None, inference_params=None):
+        self.drop_path = DropPath(dropout) if dropout > 0. else nn.Identity()
+    
+    def forward(self, sample, timestep, encoder_hidden_states, lengths=None, inference_params=None):
         """
 
         hidden_states: (B, T, D)
         Returns: same shape as hidden_states
         """
                 
-        batch, seqlen, dim = input.shape
+        batch, seqlen, dim = sample.shape
         residuals = deque()
 
-        hidden_state = input
-
+        if lengths not in [None, []]:
+            mask = lengths_to_mask(lengths, sample.device)
+        
+        # 1. time_embedding
+        # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
+        timesteps = timestep.expand(sample.shape[0]).clone()
+        time_emb = self.time_proj(timesteps)
+        time_emb = time_emb.to(dtype=sample.dtype)
+        # [1, bs, latent_dim] <= [bs, latent_dim]
+        time_emb = self.time_embedding(time_emb).unsqueeze(1)
+        
+        # 2. condition + time embedding
+        if self.condition in ["text", "text_uncond"]:
+            # text_emb [seq_len, batch_size, text_encoded_dim] <= [batch_size, seq_len, text_encoded_dim]
+            text_emb = encoder_hidden_states  # [num_words, bs, latent_dim]
+            # textembedding projection
+            if self.text_encoded_dim != self.latent_dim:
+                # [1 or 2, bs, latent_dim] <= [1 or 2, bs, text_encoded_dim]
+                text_emb_latent = self.emb_proj(text_emb)
+            else:
+                text_emb_latent = text_emb
+            emb_latent = torch.cat((time_emb, text_emb_latent), 1)
+        
+        hidden_state = sample
+        hidden_state = self.query_pos(hidden_state)
+        
+        
         # Run Motion Mamba Encoder Blocks
         for enc in self.encs:
             hidden_state = enc(hidden_state)
             residuals.append(hidden_state)
 
         # Run Transformer Mixer Block
-        if context:
-            hidden_state = self.mixer(query = hidden_state, key = context, value = context)[0]
+        if self.condition in ['text', 'text_uncond']:
+            hidden_state = self.query_pos(hidden_state)
+            emb_latent = self.mem_pos(emb_latent)
+            
+            out = self.mixer(query = hidden_state, key = emb_latent, value = emb_latent)[0]
+            
         else:
-            # self-attention
-            out = self.mixer(query = hidden_state, key = hidden_state, value = hidden_state)[0]
-
+            raise "No embedding text Error"
+        
         # Run Motion Mamba Decoder Blocks
         for dec, norm_f in zip(self.decs, self.norms):
             fused_add_norm_fn = rms_norm_fn if isinstance(norm_f, RMSNorm) else layer_norm_fn
@@ -1178,7 +1280,8 @@ class MotionMamba(nn.Module):
             out = dec(out)
         
         assert not residuals, f"Residuals is not empty: {list(residuals)}"
-
+        if torch.isnan(out).any():
+            print("Produce Nan")
         return out
 
 
@@ -1235,7 +1338,7 @@ class MotionMamba(nn.Module):
         
         # 추가 기능
         if "cuda" in str(args[0]):  # GPU로 이동하는 경우 추가 작업 수행
-            for k in range(self.num_layer):
+            for k in range(self.num_layers):
                 self.encs[k].to("cuda")
                 self.decs[k].to("cuda")
 

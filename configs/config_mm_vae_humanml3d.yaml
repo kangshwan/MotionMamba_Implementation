@@ -63,6 +63,8 @@ model:
   vae: true # whether vae model
   model_type: mld # model type
   condition: 'text'
+  # 향후 [2, 256]으로 재 학습이 필요함 (2024.12.12, Not Done) 학습 시작하면 시작 날짜 작성할것 - by kang
+  # latent_dim: [2, 256] # latent dimension
   latent_dim: [1, 256] # latent dimension
   ff_size: 1024 #
   num_layers: 9 # number of layers
@@ -84,6 +86,6 @@ LOGGER:
     OFFLINE: False
     RESUME_ID: 'VAE'
   NEPTUNE:
-    PROJECT: 'Motion-Latent-Diffusion/MLD'
+    PROJECT: 'Motion-Latent-Diffusion/MotionMamba'
     API_KEY: ./api_key.txt
     RESUME_ID: 'VAE'
