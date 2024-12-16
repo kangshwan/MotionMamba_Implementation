@@ -208,6 +208,13 @@ def main():
             if k not in ["denoiser.sequence_pos_encoding.pe"]:
                 new_state_dict[k] = v
         model.load_state_dict(new_state_dict, strict=False)
+    print(model)
+    for name, param in model.named_parameters():
+        if name.startswith('htm'):
+            if torch.isnan(param).any():
+                print(f"NaN detected in weights of layer {name}")
+            if torch.isinf(param).any():
+                print(f"Inf detected in weights of layer {name}")
 
     # fitting
     if cfg.TRAIN.RESUME:

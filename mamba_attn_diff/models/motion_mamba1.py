@@ -374,7 +374,7 @@ class MotionMamba(BaseModel):
         # reverse
         print("#################################################START#################################################")
         for i, t in enumerate(timesteps):
-            print(i)
+            print(f'{i}번째 denoising step')
             # expand the latents if we are doing classifier free guidance
             latent_model_input = (torch.cat(
                 [latents] *
@@ -385,12 +385,16 @@ class MotionMamba(BaseModel):
             # predict the noise residual
             # print('latent_model_input:', torch.isnan(latent_model_input).any())
             print(latent_model_input.shape)
+            if np.isnan(latent_model_input.cpu()).any():
+                print("Input is Nan")
             noise_pred = self.denoiser(
                 sample=latent_model_input,
                 timestep=t,
                 encoder_hidden_states=encoder_hidden_states,
                 lengths=lengths_reverse,
             )
+            if np.isnan(noise_pred.cpu()).any():
+                print("Output is Nan")
             # print('noise_pred:',torch.isnan(noise_pred).any())
             # perform guidance
             if self.do_classifier_free_guidance:
@@ -399,6 +403,8 @@ class MotionMamba(BaseModel):
                     noise_pred_text - noise_pred_uncond)
                 # text_embeddings_for_guidance = encoder_hidden_states.chunk(
                 #     2)[1] if self.do_classifier_free_guidance else encoder_hidden_states
+            if np.isnan(noise_pred.cpu()).any():
+                print("After Guidance is Nan")
             latents = self.scheduler.step(noise_pred, t, latents,
                                               **extra_step_kwargs).prev_sample
             # if self.predict_epsilon:

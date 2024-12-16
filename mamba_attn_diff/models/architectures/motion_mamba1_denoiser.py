@@ -33,6 +33,7 @@ except ImportError:
 
 from copy import deepcopy
 
+import selective_scan_cuda
 
 
 import inspect
@@ -212,6 +213,11 @@ class HTM(nn.Module):
             xz = xz + rearrange(self.in_proj.bias.to(dtype=xz.dtype), "d -> d 1")
         # print('xz.shape', xz.shape)
         flag = False
+        if np.isnan(xz.cpu()).any():
+            print("Input xz is nan")
+        print(f"[xz] min={xz.min().item():.5f}, max={xz.max().item():.5f}, mean={xz.mean().item():.5f}")
+            
+        # ############################## 여기에서 문제 발생!!! 비상 비상 쵸ㅗ비상 -by kang
         if self.use_fast_path and causal_conv1d_fn is not None and inference_params is None:  # Doesn't support outputting the states
             outputs = []
             for idx, (dt_proj, conv1d, A_log, D )in enumerate(zip(self.dt_projs, self.conv1ds, self.A_logs, self.Ds)):
@@ -230,6 +236,8 @@ class HTM(nn.Module):
                     delta_softplus=True,
                 )
                 out = rearrange(out, "b d l -> b l d")
+                if np.isnan(out.cpu()).any():
+                    print(f"block no.{idx} produce Nan ")
                 outputs.append(out)
             if self.log:
                 print('##### y.shape #####')
@@ -248,14 +256,23 @@ class HTM(nn.Module):
                     print(aggregated.shape)
                     print(f"torch.Size([B,  T,E*{self.num_module}])")
                 aggregated = self.aggregate_linear(aggregated)
-            
+
+            print(f"[aggregated] min={aggregated.min().item():.5f}, max={aggregated.max().item():.5f}, mean={aggregated.mean().item():.5f}")
+            if np.isnan(aggregated.cpu()).any():
+                
+                print("aggregated is nan")
+                breakpoint()
+
             out = self.out_proj(aggregated)
+            if np.isnan(out.cpu()).any():
+                print("output is nan")
 
             if self.log:
                 print('##### out.shape #####')
                 print(out.shape)
                 print(f"torch.Size([B,  T,  D])")
-
+            print(f"[out] min={out.min().item():.5f}, max={out.max().item():.5f}, mean={out.mean().item():.5f}")
+            
             return out
         else:
             x, z = xz.chunk(2, dim=1)
