@@ -46,7 +46,9 @@ def main():
         os.path.join(cfg.FOLDER, str(cfg.model.model_type), str(cfg.NAME),
                      "samples_" + cfg.TIME))
     output_dir.mkdir(parents=True, exist_ok=True)
-    logger.info(OmegaConf.to_yaml(cfg))
+    
+    # Logger Information
+    # logger.info(OmegaConf.to_yaml(cfg))
 
     # set seed
     pl.seed_everything(cfg.SEED_VALUE)
@@ -108,8 +110,22 @@ def main():
 
     state_dict = torch.load(cfg.TEST.CHECKPOINTS,
                             map_location="cpu")["state_dict"]
-    model.load_state_dict(state_dict)
-
+    
+    # 나중에 여기 바꺼야됨~~~!!!! 안그럼 다 망해!!!! - By KANG
+    # model.load_state_dict(state_dict)
+    logger.info("Loading pretrain vae from {}".format(
+            cfg.TRAIN.PRETRAINED_VAE))
+    state_dict = torch.load(cfg.TRAIN.PRETRAINED_VAE,
+                            map_location="cpu")["state_dict"]
+    # extract encoder/decoder
+    from collections import OrderedDict
+    vae_dict = OrderedDict()
+    for k, v in state_dict.items():
+        if k.split(".")[0] == "vae":
+            name = k.replace("vae.", "")
+            vae_dict[name] = v
+    model.vae.load_state_dict(vae_dict, strict=True)
+    
     all_metrics = {}
     replication_times = cfg.TEST.REPLICATION_TIMES
     # calculate metrics

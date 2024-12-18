@@ -1,0 +1,97 @@
+python
+import torch
+import torch.nn as nn
+# from mamba_attn_diff import HTM, BSM, MotionMambaBlock, MotionMambaDenoiser
+from mamba_attn_diff.models.architectures.motion_mamba1_denoiser import HTM, BSM, MotionMambaBlock, MotionMambaDenoiser
+torch.manual_seed(1234)
+
+# 이전 MLD의 latent의 shape는 다음과 같다.
+# [1, batch_size, latent_dim]
+# Motion Mamba의 경우, [2, batch_size, latent_dim]으로 하자!!!
+# 즉, length가 2가 되게 되는 것이다..
+
+
+batch, length, dim = 32, 2, 256
+dummy_input = torch.randn(batch, length, dim).to("cuda")
+dummy_target = torch.ones(batch, length, dim).to("cuda")
+timestep = torch.randn(32).to('cuda')
+hidden_state = torch.randn(batch, length, 768).to('cuda')
+# 손실 함수 정의
+criterion = nn.MSELoss()
+
+from types import SimpleNamespace
+
+ablation = SimpleNamespace()
+ablation.DIFF_PE_TYPE = "mld"
+
+print(ablation.DIFF_PE_TYPE)  # 출력: example_value
+
+
+motionmamba = MotionMambaDenoiser(
+    ablation=ablation,
+    d_temporal=length, # Model dimension d_model
+    d_model=dim,
+    d_state=16,  # SSM state expansion factor
+    d_conv=4,    # Local convolution width
+    expand=2,    # Block expansion factor
+    num_layers = 11,
+    log = False).to("cuda")
+
+output = motionmamba(dummy_input, timestep, hidden_state)
+
+
+
+# 손실 계산
+loss = criterion(output, dummy_target)
+
+# 역전파
+loss.backward()
+
+for name, param in motionmamba.named_parameters():
+    if param.grad is None:
+        print(f"Gradient for parameter {name} is None.")
+    else:
+        print(f"Gradient for parameter {name} has mean {param.grad.mean().item()}")
+
+
+
+# block = MotionMambaBlock(
+#     d_temporal=length, # Model dimension d_model
+#     d_model=dim,
+#     d_state=16,  # SSM state expansion factor
+#     d_conv=4,    # Local convolution width
+#     expand=2,    # Block expansion factor
+#     num_module = 21,
+#     log=True
+# ).to("cuda")
+
+# output = block(dummy_input)
+
+
+# b1 = HTM(
+#     # This module uses roughly 3 * expand * d_model^2 parameters
+#     d_model=dim, # Model dimension d_model
+#     d_state=16,  # SSM state expansion factor
+#     d_conv=4,    # Local convolution width
+#     expand=2,    # Block expansion factor
+#     num_module = 21,
+# ).to("cuda")
+# o1 = b1(dummy_input)
+
+# b2 = BSM(
+#     d_temporal=length, # Model dimension d_model
+#     d_model=dim,
+#     d_state=16,  # SSM state expansion factor
+#     d_conv=4,    # Local convolution width
+#     expand=2,    # Block expansion factor
+# ).to("cuda")
+
+# output = b2(o1)
+
+# for name, param in b2.named_parameters():
+#     if param.grad is None:
+#         print(f"Gradient for parameter {name} is None.")
+#     else:
+#         print(f"Gradient for parameter {name} has mean {param.grad.mean().item()}")
+
+

@@ -27,9 +27,9 @@ TRAIN:
   # Number of dataloader workers
   NUM_WORKERS: 8
   # Size of batches
-  BATCH_SIZE: 128
+  BATCH_SIZE: 768
   # Total epochs for training
-  END_EPOCH: 3000
+  END_EPOCH: 2000
 
   RESUME: '' # Resume training from this path
   PRETRAINED_VAE: './checkpoints/mld_humanml3d_checkpoint/1222_mld_humanml3d_FID041.ckpt' # vae model path
@@ -39,7 +39,7 @@ TRAIN:
   # Ablation study configurations.
   ABLATION:
     SKIP_CONNECT: True
-    PE_TYPE: mld
+    PE_TYPE: mld    
     DIFF_PE_TYPE: mld
 
 #####################################
@@ -47,7 +47,7 @@ TRAIN:
 #####################################
 EVAL:
   DATASETS: ['humanml3d'] # Evaluating datasets
-  BATCH_SIZE: 32 # Evaluating Batch size
+  BATCH_SIZE: 128 # Evaluating Batch size
   ##### Evaluation 여기 바꿨다 승환아 잊지마라 eval이상하면 여기가 문제다
   SPLIT: test
 
@@ -114,9 +114,9 @@ model:
 #####################################
 # Logger configuration
 LOGGER:
-  SACE_CHECKPOINT_EPOCH: 100
+  SACE_CHECKPOINT_EPOCH: 10
   LOG_EVERY_STEPS: 1
-  VAL_EVERY_STEPS: 50
+  VAL_EVERY_STEPS: 10
   TENSORBOARD: False
   WANDB:
     PROJECT: null

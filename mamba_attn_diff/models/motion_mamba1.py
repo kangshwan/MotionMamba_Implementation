@@ -372,9 +372,9 @@ class MotionMamba(BaseModel):
             extra_step_kwargs["eta"] = self.cfg.model.scheduler.eta
 
         # reverse
-        print("#################################################START#################################################")
+        # print("#################################################START#################################################")
         for i, t in enumerate(timesteps):
-            print(f'{i}번째 denoising step')
+            # print(f'{i}번째 denoising step')
             # expand the latents if we are doing classifier free guidance
             latent_model_input = (torch.cat(
                 [latents] *
@@ -384,17 +384,17 @@ class MotionMamba(BaseModel):
             # latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
             # predict the noise residual
             # print('latent_model_input:', torch.isnan(latent_model_input).any())
-            print(latent_model_input.shape)
-            if np.isnan(latent_model_input.cpu()).any():
-                print("Input is Nan")
+            # print(latent_model_input.shape)
+            # if np.isnan(latent_model_input.cpu()).any():
+            #     print("Input is Nan")
             noise_pred = self.denoiser(
                 sample=latent_model_input,
                 timestep=t,
                 encoder_hidden_states=encoder_hidden_states,
                 lengths=lengths_reverse,
             )
-            if np.isnan(noise_pred.cpu()).any():
-                print("Output is Nan")
+            # if np.isnan(noise_pred.cpu()).any():
+            #     print("Output is Nan")
             # print('noise_pred:',torch.isnan(noise_pred).any())
             # perform guidance
             if self.do_classifier_free_guidance:
@@ -403,8 +403,8 @@ class MotionMamba(BaseModel):
                     noise_pred_text - noise_pred_uncond)
                 # text_embeddings_for_guidance = encoder_hidden_states.chunk(
                 #     2)[1] if self.do_classifier_free_guidance else encoder_hidden_states
-            if np.isnan(noise_pred.cpu()).any():
-                print("After Guidance is Nan")
+            # if np.isnan(noise_pred.cpu()).any():
+            #     print("After Guidance is Nan")
             latents = self.scheduler.step(noise_pred, t, latents,
                                               **extra_step_kwargs).prev_sample
             # if self.predict_epsilon:
@@ -417,7 +417,7 @@ class MotionMamba(BaseModel):
             #                                   t,
             #                                   latents,
             #                                   **extra_step_kwargs).prev_sample
-        print("################################################# END #################################################")
+        # print("################################################# END #################################################")
         # [batch_size, 1, latent_dim] -> [1, batch_size, latent_dim]
         latents = latents.permute(1, 0, 2)
         return latents
@@ -680,7 +680,7 @@ class MotionMamba(BaseModel):
         return rs_set
 
     def t2m_eval(self, batch):
-        print("여기가 t2m_eval이오")
+        # print("여기가 t2m_eval이오")
         texts = batch["text"]
         motions = batch["motion"].detach().clone()
         lengths = batch["length"]
@@ -723,7 +723,7 @@ class MotionMamba(BaseModel):
                 # uncond random sample
                 z = torch.randn_like(z)
 
-        print(torch.isnan(z).any())
+        # print(torch.isnan(z).any())
 
         with torch.no_grad():
             if self.vae_type in ["mld", "vposert", "actor"]:
@@ -876,7 +876,7 @@ class MotionMamba(BaseModel):
         return rs_set
 
     def allsplit_step(self, split: str, batch, batch_idx):
-        print('#'*30,batch_idx)
+        # print('#'*30,batch_idx)
         if split in ["train", "val"]:
             if self.stage == "vae":
                 rs_set = self.train_vae_forward(batch)

@@ -96,7 +96,7 @@ def main():
                                                  name="")
         loggers.append(tb_logger)
     
-    # logger.info(OmegaConf.to_yaml(cfg.model))
+    logger.info(OmegaConf.to_yaml(cfg.model))
     
     # create dataset
     datasets = get_datasets(cfg, logger=logger)
@@ -208,7 +208,7 @@ def main():
             if k not in ["denoiser.sequence_pos_encoding.pe"]:
                 new_state_dict[k] = v
         model.load_state_dict(new_state_dict, strict=False)
-    print(model)
+    # print(model)
     for name, param in model.named_parameters():
         if name.startswith('htm'):
             if torch.isnan(param).any():

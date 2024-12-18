@@ -79,6 +79,9 @@ class HTM(nn.Module):
         dt_init="random",
         dt_scale=1.0,
         dt_init_floor=1e-4,
+        norm_epsilon: float = 1e-5, 
+        rms_norm: bool = True, 
+        residual_in_fp32: bool = True,
         conv_bias=True,
         bias=False,
         use_fast_path=True,  # Fused kernel options
@@ -87,6 +90,7 @@ class HTM(nn.Module):
         dtype=None,
         num_module=1, # value k
         aggregate='concat_linear', # 'sum', 'concat_linear'
+        init_layer_scale=None,
         log=False,
         **kwargs,
     ):
@@ -104,7 +108,16 @@ class HTM(nn.Module):
         self.aggregate = aggregate
         self.log = log
         self.in_proj = nn.Linear(self.d_model, self.d_inner * 2, bias=bias, **factory_kwargs)
+        self.residual_in_fp32 = residual_in_fp32
+        self.init_layer_scale = init_layer_scale
+        
+        if init_layer_scale is not None:
+            self.gamma = nn.Parameter(init_layer_scale * torch.ones((self.d_model)), requires_grad=True)
 
+        self.norm = (nn.LayerNorm if not rms_norm else RMSNorm)(
+            self.d_model, eps=norm_epsilon, **factory_kwargs
+        )
+            
         # HTM block convolution initialization - by KANG
         conv1d = nn.Conv1d(
             in_channels=self.d_inner,
@@ -188,7 +201,21 @@ class HTM(nn.Module):
             print('##### HTM_Input.shape #####')
             print(hidden_states.shape)
             print(f"torch.Size([B,  T,  D])")
+            
         # print(f'B: {batch}, T: {seqlen} D: {dim}')
+        init_fused_add_norm_fn = rms_norm_fn if isinstance(self.norm, RMSNorm) else layer_norm_fn
+        
+        # residual: hidden_state
+        hidden_states, residual = init_fused_add_norm_fn(
+            hidden_states,
+            self.norm.weight,
+            self.norm.bias,
+            residual=None,
+            prenorm=True,
+            residual_in_fp32=self.residual_in_fp32,
+            eps=self.norm.eps,
+        )
+        
         conv_state, ssm_state = None, None
         if inference_params is not None:
             conv_state, ssm_state = self._get_states_from_cache(inference_params, batch)
@@ -213,10 +240,11 @@ class HTM(nn.Module):
             xz = xz + rearrange(self.in_proj.bias.to(dtype=xz.dtype), "d -> d 1")
         # print('xz.shape', xz.shape)
         flag = False
-        if np.isnan(xz.cpu()).any():
-            print("Input xz is nan")
-        print(f"[xz] min={xz.min().item():.5f}, max={xz.max().item():.5f}, mean={xz.mean().item():.5f}")
-            
+        # if np.isnan(xz.cpu()).any():
+        #     print("Input xz is nan")
+        # print(f"[xz] min={xz.min().item():.5f}, max={xz.max().item():.5f}, mean={xz.mean().item():.5f}")
+        if xz.is_complex():
+            print("It fucking complex mother fucker")
         # ############################## 여기에서 문제 발생!!! 비상 비상 쵸ㅗ비상 -by kang
         if self.use_fast_path and causal_conv1d_fn is not None and inference_params is None:  # Doesn't support outputting the states
             outputs = []
@@ -236,8 +264,8 @@ class HTM(nn.Module):
                     delta_softplus=True,
                 )
                 out = rearrange(out, "b d l -> b l d")
-                if np.isnan(out.cpu()).any():
-                    print(f"block no.{idx} produce Nan ")
+                # if np.isnan(out.cpu()).any():
+                #     print(f"block no.{idx} produce Nan ")
                 outputs.append(out)
             if self.log:
                 print('##### y.shape #####')
@@ -257,21 +285,22 @@ class HTM(nn.Module):
                     print(f"torch.Size([B,  T,E*{self.num_module}])")
                 aggregated = self.aggregate_linear(aggregated)
 
-            print(f"[aggregated] min={aggregated.min().item():.5f}, max={aggregated.max().item():.5f}, mean={aggregated.mean().item():.5f}")
-            if np.isnan(aggregated.cpu()).any():
-                
-                print("aggregated is nan")
-                breakpoint()
+            # print(f"[aggregated] min={aggregated.min().item():.5f}, max={aggregated.max().item():.5f}, mean={aggregated.mean().item():.5f}")
+            # if np.isnan(aggregated.cpu()).any():                
+            #     print("aggregated is nan")
+                # breakpoint()
 
             out = self.out_proj(aggregated)
-            if np.isnan(out.cpu()).any():
-                print("output is nan")
+            # if np.isnan(out.cpu()).any():
+            #     print("output is nan")
 
             if self.log:
                 print('##### out.shape #####')
                 print(out.shape)
                 print(f"torch.Size([B,  T,  D])")
-            print(f"[out] min={out.min().item():.5f}, max={out.max().item():.5f}, mean={out.mean().item():.5f}")
+            # print(f"[out] min={out.min().item():.5f}, max={out.max().item():.5f}, mean={out.mean().item():.5f}")
+            if self.init_layer_scale is not None:
+                out = out = out * self.gamma
             
             return out
         else:
@@ -756,6 +785,7 @@ class BSM(nn.Module):
             print("##### Output shape #####")
             print(out.shape)
             print(f"torch.Size([B,  D,  T])")
+            
         if self.d_temporal != 1:
             fused_add_norm_fn = rms_norm_fn if isinstance(self.norm_f, RMSNorm) else layer_norm_fn
             out = fused_add_norm_fn(
@@ -933,6 +963,9 @@ class MotionMambaBlock(nn.Module):
                        dt_init,
                        dt_scale,
                        dt_init_floor,
+                       norm_epsilon,
+                       rms_norm,
+                       residual_in_fp32,
                        conv_bias,
                        bias,
                        use_fast_path,
