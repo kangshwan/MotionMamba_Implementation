@@ -225,12 +225,21 @@ class BaseModel(LightningModule):
                         npypath = output_dir / name
                         np.save(npypath, gen_joints)
     
-    def on_after_backward(self):
-        # 전체 그래디언트 노름 계산
-        total_norm = 0
-        for param in self.parameters():
-            if param.grad is not None:
-                param_norm = param.grad.data.norm(2)
-                total_norm += param_norm.item() ** 2
-        total_norm = total_norm ** 0.5
-        self.log("total_grad_norm", total_norm)
+    # def on_after_backward(self):
+    #     # 전체 그래디언트 노름 계산
+    #     total_norm = 0
+    #     for param in self.parameters():
+    #         if param.grad is not None:
+    #             param_norm = param.grad.data.norm(2)
+    #             total_norm += param_norm.item() ** 2
+    #     total_norm = total_norm ** 0.5
+    #     self.log("total_grad_norm", total_norm)
+        # loss.backward() 이후에 호출됨
+        # 예: 첫 번째 레이어의 첫 번째 파라미터의 grad를 출력
+        # for name, param in self.named_parameters():
+        #     if 'denoiser' not in name:
+        #         continue
+        #     if param.grad is not None:
+        #         print(f"{name}: grad mean = {param.grad.mean().item():.6f}")
+        #     else:
+        #         print(f"{name} has no grad")        

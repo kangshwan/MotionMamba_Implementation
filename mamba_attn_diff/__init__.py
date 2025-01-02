@@ -1,1 +1,2 @@
 from mamba_attn_diff.models.motion_mamba1 import MotionMamba
+from mamba_attn_diff.models.architectures.motion_mamba1_denoiser import MotionMambaDenoiser

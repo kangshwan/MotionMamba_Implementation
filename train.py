@@ -14,6 +14,8 @@ from mld.data.get_data import get_datasets
 from mld.models.get_model import get_model
 from mld.utils.logger import create_logger
 
+torch.set_float32_matmul_precision('high')
+torch.backends.cuda.matmul.allow_tf32 = True
 
 def main():
     # parse options
@@ -23,6 +25,7 @@ def main():
     logger = create_logger(cfg, phase="train")
 
     # resume
+    print(cfg.TRAIN.RESUME)
     if cfg.TRAIN.RESUME:
         resume = cfg.TRAIN.RESUME
         backcfg = cfg.TRAIN.copy()
@@ -167,9 +170,9 @@ def main():
         default_root_dir=cfg.FOLDER_EXP,
         log_every_n_steps=cfg.LOGGER.VAL_EVERY_STEPS,
         deterministic=False,
-        # detect_anomaly=False,
-        detect_anomaly=True,
-        gradient_clip_val=1.0,
+        detect_anomaly=False,
+        # detect_anomaly=True,
+        # gradient_clip_val=1.0,
         enable_progress_bar=True,
         logger=loggers,
         callbacks=callbacks,
@@ -193,7 +196,8 @@ def main():
                 name = k.replace("vae.", "")
                 vae_dict[name] = v
         model.vae.load_state_dict(vae_dict, strict=True)
-
+        
+    print(cfg.TRAIN.PRETRAINED)
     if cfg.TRAIN.PRETRAINED:
         logger.info("Loading pretrain mode from {}".format(
             cfg.TRAIN.PRETRAINED))
@@ -209,12 +213,12 @@ def main():
                 new_state_dict[k] = v
         model.load_state_dict(new_state_dict, strict=False)
     # print(model)
-    for name, param in model.named_parameters():
-        if name.startswith('htm'):
-            if torch.isnan(param).any():
-                print(f"NaN detected in weights of layer {name}")
-            if torch.isinf(param).any():
-                print(f"Inf detected in weights of layer {name}")
+    # for name, param in model.named_parameters():
+    #     if name.startswith('htm'):
+    #         if torch.isnan(param).any():
+    #             print(f"NaN detected in weights of layer {name}")
+    #         if torch.isinf(param).any():
+    #             print(f"Inf detected in weights of layer {name}")
 
     # fitting
     if cfg.TRAIN.RESUME:

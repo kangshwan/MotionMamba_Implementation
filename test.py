@@ -111,8 +111,10 @@ def main():
     state_dict = torch.load(cfg.TEST.CHECKPOINTS,
                             map_location="cpu")["state_dict"]
     
-    # 나중에 여기 바꺼야됨~~~!!!! 안그럼 다 망해!!!! - By KANG
-    # model.load_state_dict(state_dict)
+    ## 나중에 여기 바꺼야됨~~~!!!! 안그럼 다 망해!!!! - By KANG -- 원복함
+    ####### START #######
+    model.load_state_dict(state_dict)
+    #######  END  #######
     logger.info("Loading pretrain vae from {}".format(
             cfg.TRAIN.PRETRAINED_VAE))
     state_dict = torch.load(cfg.TRAIN.PRETRAINED_VAE,

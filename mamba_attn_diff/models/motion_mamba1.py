@@ -882,7 +882,7 @@ class MotionMamba(BaseModel):
                 rs_set = self.train_vae_forward(batch)
                 rs_set["lat_t"] = rs_set["lat_m"]
             elif self.stage == "diffusion":
-                rs_set = self.train_diffusion_forward(batch)
+                rs_set = self.train_diffusion_forward(batch) # batch에 대해서 _diffusion_process를 진행, 모든 time step에 진행하는 것이 아닌, 1번의 timestep을 진행
                 
             elif self.stage == "vae_diffusion":
                 vae_rs_set = self.train_vae_forward(batch)
@@ -899,7 +899,8 @@ class MotionMamba(BaseModel):
                 }
             else:
                 raise ValueError(f"Not support this stage {self.stage}!")
-
+            
+            # loss를 update, train/validation에 맞게 rs_set (적당한 output value)을 활용해 loss를 update한다.
             loss = self.losses[split].update(rs_set)
             if loss is None:
                 raise ValueError(
@@ -907,9 +908,13 @@ class MotionMamba(BaseModel):
         
         # Compute the metrics - currently evaluate results from text to motion
         if split in ["val", "test"]:
-            if self.condition in ['text', 'text_uncond']:
+            if self.condition in ['text', 'text_uncond']:   # 보통 text로 진행됨.
                 # use t2m evaluators
-                rs_set = self.t2m_eval(batch)
+                rs_set = self.t2m_eval(batch)   # t2m_eval은 batch를 t2m 방식으로 rs_set을 계산하는것.
+                # t2m방식이라고 달라보이지만, 결국에는 1회 vae 통과 및 diffusion_reverse 과정 진행한다.
+                # diffusion reverse 과정은 t timestep만큼 반복해 원본 모션을 추출하는 과정이다.
+                # 나머지 과정은 t2m방식에 맞게 motion을 decoding한다.
+                
             elif self.condition == 'action':
                 # use a2m evaluators
                 rs_set = self.a2m_eval(batch)
@@ -931,7 +936,7 @@ class MotionMamba(BaseModel):
                         raise TypeError(
                             "APE and AVE metrics only support humanml3d and kit datasets now"
                         )
-                    
+                    # metric을 불러와, 해당 데이터를 통해 loss update
                     getattr(self, metric).update(rs_set["joints_rst"],
                                                  rs_set["joints_ref"],
                                                  batch["length"])

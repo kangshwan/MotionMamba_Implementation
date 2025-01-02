@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
+from torch.nn import init
 
 from collections import deque
 
@@ -167,6 +168,9 @@ class HTM(nn.Module):
 
         # S4D real initialization
         # k number S4D initialization - by KANG
+        
+        # k number S4D integration - by KANG
+        
         self.A_logs = []
         self.Ds = []
         
@@ -183,6 +187,20 @@ class HTM(nn.Module):
             # D "skip" parameter
             self.Ds.append(nn.Parameter(torch.ones(self.d_inner, device=device)))  # Keep in fp32
             self.Ds[k]._no_weight_decay = True
+            
+        # A = repeat(
+        #     torch.arange(1, self.d_state*k + 1, dtype=torch.float32, device=device),
+        #     "n -> d n",
+        #     d=self.d_inner,
+        # ).contiguous()
+        # A_log = torch.log(A)
+        # self.A_log = nn.Parameter(A_log)
+        # self.A_log._no_weight_decay = True
+        
+        # # D "skip" parameter
+        # self.D = nn.Parameter(torch.ones(self.d_inner, device=device))  # Keep in fp32
+        # self.D._no_weight_decay = True
+
         
         # aggregate
         if self.aggregate == 'concat_linear':
@@ -203,6 +221,9 @@ class HTM(nn.Module):
             print(f"torch.Size([B,  T,  D])")
             
         # print(f'B: {batch}, T: {seqlen} D: {dim}')
+        
+        # Normalize 안한것도 학습을 진행할 필요가 있다. -- BY KANG, 2024-12-19
+        
         init_fused_add_norm_fn = rms_norm_fn if isinstance(self.norm, RMSNorm) else layer_norm_fn
         
         # residual: hidden_state
@@ -230,6 +251,7 @@ class HTM(nn.Module):
             "d (b l) -> b d l",
             l=seqlen,
         )
+        
         if self.log:
             print('##### xz.shape #####')
             print(xz.shape)
@@ -248,8 +270,28 @@ class HTM(nn.Module):
         # ############################## 여기에서 문제 발생!!! 비상 비상 쵸ㅗ비상 -by kang
         if self.use_fast_path and causal_conv1d_fn is not None and inference_params is None:  # Doesn't support outputting the states
             outputs = []
+            # xz stack 쌓기
+            
+            
+            # A = -torch.exp(self.A_log.float())  # (d_inner, d_state)
+            
+            # aggregated = mamba_inner_fn_no_out_proj(
+            #     xz,
+            #     self.conv1d.weight,
+            #     self.conv1d.bias,
+            #     self.x_proj.weight,
+            #     self.dt_proj.weight,
+            #     A,
+            #     None,  # input-dependent B
+            #     None,  # input-dependent C
+            #     self.D.float(),
+            #     delta_bias=self.dt_proj.bias.float(),
+            #     delta_softplus=True,
+            # )
             for idx, (dt_proj, conv1d, A_log, D )in enumerate(zip(self.dt_projs, self.conv1ds, self.A_logs, self.Ds)):
                 A = -torch.exp(A_log.float()) 
+                
+                # 적당한 실험 돌려두고, 다음 실험때는 여기를 no_out_proj말고 proj하는 방향으로 확인해야 겠음.
                 out = mamba_inner_fn_no_out_proj(
                     xz,
                     conv1d.weight,
@@ -284,13 +326,15 @@ class HTM(nn.Module):
                     print(aggregated.shape)
                     print(f"torch.Size([B,  T,E*{self.num_module}])")
                 aggregated = self.aggregate_linear(aggregated)
+            
 
             # print(f"[aggregated] min={aggregated.min().item():.5f}, max={aggregated.max().item():.5f}, mean={aggregated.mean().item():.5f}")
             # if np.isnan(aggregated.cpu()).any():                
             #     print("aggregated is nan")
-                # breakpoint()
+                # 
 
             out = self.out_proj(aggregated)
+            
             # if np.isnan(out.cpu()).any():
             #     print("output is nan")
 
@@ -300,7 +344,7 @@ class HTM(nn.Module):
                 print(f"torch.Size([B,  T,  D])")
             # print(f"[out] min={out.min().item():.5f}, max={out.max().item():.5f}, mean={out.mean().item():.5f}")
             if self.init_layer_scale is not None:
-                out = out = out * self.gamma
+                out =  out * self.gamma
             
             return out
         else:
@@ -484,6 +528,7 @@ class HTM(nn.Module):
 
 
 class BSM(nn.Module):
+    
     def __init__(
         self,
         d_temporal=2,     # latent [2, 256] 에서 2를 맡고 있는 녀석이다.
@@ -953,6 +998,8 @@ class MotionMambaBlock(nn.Module):
                 self.d_model, self.d_model, bias=True, **factory_kwargs
             )
         
+        init.xavier_uniform_(self.gate.weight)
+        
         self.htm = HTM(d_model,
                        d_state,
                        d_conv,
@@ -974,7 +1021,8 @@ class MotionMambaBlock(nn.Module):
                        dtype,
                        num_module,
                        aggregate,
-                       log,
+                       init_layer_scale,
+                       log=log,
                        **kwargs)
         
         self.bsm = BSM(d_temporal,
@@ -1022,12 +1070,12 @@ class MotionMambaBlock(nn.Module):
             print(gate.shape)
             print(f"torch.Size([B,  T,  D])")
         
-        hidden_states = self.htm(hidden_states)
+        hidden_states1 = self.htm.forward(hidden_states)
         
-        hidden_states = self.bsm(hidden_states)
+        hidden_states2 = self.bsm.forward(hidden_states1)
         
-        out = hidden_states * gate
-
+        out = hidden_states2 * gate
+        
         if self.log:
             print("##### Final Output.shape #####")
             print(out.shape)
@@ -1081,7 +1129,6 @@ class MotionMambaBlock(nn.Module):
 
         out = self.out_proj(y)
         return out.unsqueeze(1), conv_state, ssm_state
-
     
     def to(self, *args, **kwargs):
         # 기존 `to` 메서드 호출
