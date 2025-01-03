@@ -5,7 +5,10 @@
 # Experiment name, more details in Section 'Experiment Name Explanation'
 # NAME: 1222_PELearn_Diff_Latent1_MEncDec49_MdiffEnc49_bs64_clip_uncond75_01
 # NAME: MotionGenAI_Given_MLD_Test
-NAME: The First Motion Mamba Test
+# NAME: The First Motion Mamba Test
+NAME: Motion_Mamba_bs768_test_128_concat
+# NAME: MIN_FID_MID_TEST
+
 # Debug mode. Set to True will enter the debug mode, then the program will
 # 1. use a tiny dataset for trianing and evaluation
 # 2. validate more intensively
@@ -55,7 +58,7 @@ EVAL:
 # The following are testing settings
 #####################################
 TEST:
-  CHECKPOINTS: ./checkpoints/mld_humanml3d_checkpoint/1222_mld_humanml3d_FID041.ckpt # Pretrained model path
+  CHECKPOINTS: '' # Pretrained model path
   DATASETS: ['humanml3d'] # training datasets
   SPLIT: test
   BATCH_SIZE: 1 # training Batch size
@@ -119,11 +122,12 @@ LOGGER:
   VAL_EVERY_STEPS: 10
   TENSORBOARD: False
   WANDB:
-    PROJECT: null
-    # PROJECT: 'Motion-Latent-Diffusion/MLD'
+    # PROJECT: null
+    PROJECT: 'Motion_Mamba'
     OFFLINE: False
-    RESUME_ID: 'VAE'
+    RESUME_ID: 'MotionMamba'
   NEPTUNE:
-    PROJECT: 'Motion-Latent-Diffusion/MotionMamba'
+    PROJECT: null
+    # PROJECT: 'Motion-Latent-Diffusion/MotionMamba'
     API_KEY: ./api_key.txt
     RESUME_ID: 'VAE'

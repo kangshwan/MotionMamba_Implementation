@@ -213,7 +213,6 @@ class HTM(nn.Module):
         hidden_states: (B, T, D)
         Returns: same shape as hidden_states
         """
-        
         batch, seqlen, dim = hidden_states.shape
         if self.log:
             print('##### HTM_Input.shape #####')
@@ -1237,11 +1236,11 @@ class MotionMambaDenoiser(nn.Module):
         self.norms = nn.ModuleList(
             [(nn.LayerNorm if not rms_norm else RMSNorm)(self.d_model, eps=norm_epsilon, **factory_kwargs) for _ in range(self.num_layers)]
         )
-
+        # 승환아 여기 +2 했어!!! 이유는 time embeding과 text embeding 차원이 1개씩 늘어 총 2개 늘어서 그래!
         self.encs = nn.ModuleList(
             [MotionMambaBlock(
                 d_model,
-                d_temporal,
+                d_temporal+2,
                 d_state,
                 d_conv,
                 expand,
@@ -1277,7 +1276,7 @@ class MotionMambaDenoiser(nn.Module):
         self.decs = nn.ModuleList(
             [MotionMambaBlock(
                 d_model,
-                d_temporal,
+                d_temporal+2,
                 d_state,
                 d_conv,
                 expand,
@@ -1316,7 +1315,6 @@ class MotionMambaDenoiser(nn.Module):
         hidden_states: (B, T, D)
         Returns: same shape as hidden_states
         """
-                
         batch, seqlen, dim = sample.shape
         residuals = deque()
 
@@ -1343,9 +1341,9 @@ class MotionMambaDenoiser(nn.Module):
                 text_emb_latent = text_emb
             emb_latent = torch.cat((time_emb, text_emb_latent), 1)
         
-        hidden_state = sample
+        # concat context information to hidden state - 승환
+        hidden_state = torch.cat((sample, emb_latent), axis=1)
         hidden_state = self.query_pos(hidden_state)
-        
         
         # Run Motion Mamba Encoder Blocks
         for enc in self.encs:
@@ -1355,13 +1353,16 @@ class MotionMambaDenoiser(nn.Module):
         # Run Transformer Mixer Block
         if self.condition in ['text', 'text_uncond']:
             hidden_state = self.query_pos(hidden_state)
+            # emb_latent가 뭉탱이로다가 유링게슝하게 합쳐져 있기 때문에, 잘라준다. - 승환
+            # hidden_state = self.query_pos(hidden_state[:,:seqlen])
             emb_latent = self.mem_pos(emb_latent)
-            
             out = self.mixer(query = hidden_state, key = emb_latent, value = emb_latent)[0]
             
         else:
             raise "No embedding text Error"
         
+        # 다시한번 emb_latent concat - residual shape 맞춰주기 위함. - 승환
+        out = torch.cat((out, emb_latent), axis=1)
         # Run Motion Mamba Decoder Blocks
         for dec, norm_f in zip(self.decs, self.norms):
             fused_add_norm_fn = rms_norm_fn if isinstance(norm_f, RMSNorm) else layer_norm_fn
@@ -1375,7 +1376,9 @@ class MotionMambaDenoiser(nn.Module):
                 residual_in_fp32=self.residual_in_fp32,
             )
             out = dec(out)
-        
+            
+        # 승환아 여기 차원 안맞아서 :,: seqlen 했다!!! MLD에서도 token[:smaple.shape[0]]으로 자르더라!!
+        out = out[:, :seqlen]
         assert not residuals, f"Residuals is not empty: {list(residuals)}"
         if torch.isnan(out).any():
             print("Produce Nan")
