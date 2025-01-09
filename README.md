@@ -16,11 +16,11 @@ This repository provides an implementation of the **Motion Mamba** paper. The wo
 
 ## Key Contributions
 1. **Mamba Block Construction**:
-   - Combines the **Mamba Block design approach from the DiM paper** with **code implementation techniques from the ViM paper**.
+   - Combines the **Mamba Block design approach from the DiM project** with **code implementation techniques from the ViM project**.
    - Ensures compliance with the Apache License 2.0 as required by Mamba and ViM.
 
 2. **Training Pipeline**:
-   - The training process integrates methodologies introduced in the **MLD paper**, which is licensed under MIT License.
+   - The training process integrates methodologies introduced in the **MLD project**, which is licensed under MIT License.
 
 3. **Code Integration**:
    - All code is developed with respect to the licenses and intellectual property of the referenced repositories.
@@ -84,6 +84,63 @@ This implementation heavily relies on the requirements of the DiM and MLD projec
 - **Hardware**: NVIDIA GPU
 - **Framework**: PyTorch 2.1.1
 
+## Train your Model
+This process is largely based on the [MLD](https://github.com/ChenFengYe/motion-latent-diffusion) project.  
+<details>
+  <summary><b>Training guidance</b></summary>  
+
+### 1. Prepare datasets
+Please refer to [HumanML3D](https://github.com/EricGuo5513/HumanML3D) for text-to-motion dataset setup. We will provide instructions for other datasets soon.
+
+### 2.1. Ready to train VAE model
+
+Please first check the parameters in `configs/config_vae_humanml3d.yaml`, e.g. `NAME`,`DEBUG`.
+
+Then, run the following command:
+
+```
+python -m train --cfg configs/config_vae_humanml3d.yaml --cfg_assets configs/assets.yaml --batch_size 64 --nodebug
+```
+**※ Caution ※**  
+If you want to follow the Motion Mamba paper directly, ensure your **VAE latent shape** is `[2, 256]`, not `[1, 256]`.  
+
+Please update the **VAE latent shape** in `configs/config_vae_humanml3d.yaml`, specifically the `model.latent_dim`.
+
+### 2.2. Ready to train Motion Mamba Model
+
+Please update the parameters in `configs/config_motionmamba_1_humanml3d.yaml`, e.g. `NAME`,`DEBUG`,`PRETRAINED_VAE` (change to your `latest ckpt model path` in previous step)
+
+Then, run the following command:
+
+```
+python -m train --cfg configs/config_motionmamba_1_humanml3d.yaml --cfg_assets configs/assets.yaml --batch_size 64 --nodebug
+```
+
+If you are using MLD's VAE, ensure your config's `latent_dim` is `[1, 256]`.  
+If you want to fully follow the Motion Mamba paper, you need to train your VAE from scratch.
+
+
+### 3. Evaluate the model
+
+Please first put the tained model checkpoint path to `TEST.CHECKPOINT` in `configs/config_mld_humanml3d.yaml`.
+
+Then, run the following command:
+
+```
+python -m test --cfg configs/config_motionmamba_1_humanml3d.yaml --cfg_assets configs/assets.yaml
+```
+
+</details>
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
 <br>
 <br>
 <br>
