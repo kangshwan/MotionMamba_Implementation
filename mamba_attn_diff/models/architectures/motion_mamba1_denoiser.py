@@ -1178,6 +1178,7 @@ class MotionMambaDenoiser(nn.Module):
                  freq_shift: int = 0,
                  text_encoded_dim: int=768,
                  nclasses: int = 10,
+                 version: str = 'v2',
                  **kwargs
     ):
         factory_kwargs = {"device": torch.device('cuda') if device=='gpu' else torch.device('cpu'), 
@@ -1213,6 +1214,7 @@ class MotionMambaDenoiser(nn.Module):
         self.condition = condition
         self.pe_type = ablation.DIFF_PE_TYPE
         self.text_encoded_dim = text_encoded_dim
+        self.version = version
 
         if self.condition in ["text", "text_uncond"]:
             # text condition
@@ -1355,12 +1357,13 @@ class MotionMambaDenoiser(nn.Module):
             # emb_latent가 뭉탱이로다가 유링게슝하게 합쳐져 있기 때문에, 잘라준다. - 승환
             # transformer에 값을 제공할 때 잘라서 제공하는 방법
             # concat_v1
-            # hidden_state = self.query_pos(hidden_state[:,:seqlen])
-            
+            if self.version == 'v1':
+                hidden_state = self.query_pos(hidden_state[:,:seqlen])
             
             # transformer에 값을 제공할 때 그대로 제공하는 방법
             # concat_v2
-            hidden_state = self.query_pos(hidden_state)
+            elif self.version == 'v2':
+                hidden_state = self.query_pos(hidden_state)
             
             emb_latent = self.mem_pos(emb_latent)
             out = self.mixer(query = hidden_state, key = emb_latent, value = emb_latent)[0]
@@ -1370,7 +1373,8 @@ class MotionMambaDenoiser(nn.Module):
         
         # 다시한번 emb_latent concat - residual shape 맞춰주기 위함. - 승환
         # concat_v1
-        # out = torch.cat((out, emb_latent), axis=1)
+        if self.version == 'v1':
+            out = torch.cat((out, emb_latent), axis=1)
         # concat_v2
         # 아무것도 안하지롱 v2는
         # Run Motion Mamba Decoder Blocks

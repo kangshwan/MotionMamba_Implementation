@@ -42,3 +42,4 @@ mamba1_denoiser:
     device: {ACCELERATOR}
     dtype: fp32
     log: False
+    version: v2
