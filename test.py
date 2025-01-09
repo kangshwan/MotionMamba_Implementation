@@ -16,6 +16,9 @@ from mld.models.get_model import get_model
 from mld.utils.logger import create_logger
 
 
+torch.set_float32_matmul_precision('high')
+torch.backends.cuda.matmul.allow_tf32 = True
+
 def print_table(title, metrics):
     table = Table(title=title)
 

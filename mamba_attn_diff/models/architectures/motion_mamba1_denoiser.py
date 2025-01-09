@@ -1352,9 +1352,16 @@ class MotionMambaDenoiser(nn.Module):
 
         # Run Transformer Mixer Block
         if self.condition in ['text', 'text_uncond']:
-            hidden_state = self.query_pos(hidden_state)
             # emb_latent가 뭉탱이로다가 유링게슝하게 합쳐져 있기 때문에, 잘라준다. - 승환
+            # transformer에 값을 제공할 때 잘라서 제공하는 방법
+            # concat_v1
             # hidden_state = self.query_pos(hidden_state[:,:seqlen])
+            
+            
+            # transformer에 값을 제공할 때 그대로 제공하는 방법
+            # concat_v2
+            hidden_state = self.query_pos(hidden_state)
+            
             emb_latent = self.mem_pos(emb_latent)
             out = self.mixer(query = hidden_state, key = emb_latent, value = emb_latent)[0]
             
@@ -1362,7 +1369,10 @@ class MotionMambaDenoiser(nn.Module):
             raise "No embedding text Error"
         
         # 다시한번 emb_latent concat - residual shape 맞춰주기 위함. - 승환
-        out = torch.cat((out, emb_latent), axis=1)
+        # concat_v1
+        # out = torch.cat((out, emb_latent), axis=1)
+        # concat_v2
+        # 아무것도 안하지롱 v2는
         # Run Motion Mamba Decoder Blocks
         for dec, norm_f in zip(self.decs, self.norms):
             fused_add_norm_fn = rms_norm_fn if isinstance(norm_f, RMSNorm) else layer_norm_fn
