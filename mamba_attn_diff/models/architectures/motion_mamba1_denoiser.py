@@ -1215,6 +1215,7 @@ class MotionMambaDenoiser(nn.Module):
         self.pe_type = ablation.DIFF_PE_TYPE
         self.text_encoded_dim = text_encoded_dim
         self.version = version
+        print("MambaVersion: ", self.version)
 
         if self.condition in ["text", "text_uncond"]:
             # text condition

@@ -6,7 +6,7 @@
 # NAME: 1222_PELearn_Diff_Latent1_MEncDec49_MdiffEnc49_bs64_clip_uncond75_01
 # NAME: MotionGenAI_Given_MLD_Test
 # NAME: The First Motion Mamba Test
-NAME: Motion_Mamba_bs768_test_128_concat
+NAME: Motion_Mamba_bs768_test_128_concat_v1_VAE_v2_TEST
 # NAME: MIN_FID_MID_TEST
 
 # Debug mode. Set to True will enter the debug mode, then the program will
@@ -35,7 +35,8 @@ TRAIN:
   END_EPOCH: 2000
 
   RESUME: '' # Resume training from this path
-  PRETRAINED_VAE: './checkpoints/mld_humanml3d_checkpoint/1222_mld_humanml3d_FID041.ckpt' # vae model path
+  PRETRAINED_VAE: './experiments/mld/VAE-v2/checkpoints/epoch=2009.ckpt'
+  # PRETRAINED_VAE: './checkpoints/mld_humanml3d_checkpoint/1222_mld_humanml3d_FID041.ckpt' # vae model path
   OPTIM:
     TYPE: AdamW # Optimizer type
     LR: 1e-4 # Learning rate
@@ -100,7 +101,7 @@ model:
   vae: true # whether vae model
   model_type: mm1 # model type
   condition: 'text'
-  latent_dim: [1, 256] # latent dimension
+  latent_dim: [2, 256] # latent dimension
   d_temporal: 1 # latent_dim[0]
   d_state: 16 # SSM state expansion factor
   d_conv: 4   # Local convolution width
@@ -111,6 +112,7 @@ model:
   activation: gelu # activation type
   guidance_scale: 7.5 #
   guidance_uncondp: 0.1 # 0.1 0.25
+  version: v2   # change the motion_mamba version here - 강승환
 
 #####################################
 # The following are loggers settings
@@ -125,7 +127,7 @@ LOGGER:
     # PROJECT: null
     PROJECT: 'Motion_Mamba'
     OFFLINE: False
-    RESUME_ID: 'MotionMamba'
+    RESUME_ID: 'MotionMamba_v1_VAE_v2_TEST'
   NEPTUNE:
     PROJECT: null
     # PROJECT: 'Motion-Latent-Diffusion/MotionMamba'

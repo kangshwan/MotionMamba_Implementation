@@ -160,6 +160,8 @@ def parse_args(phase="train"):
     cfg_base = OmegaConf.load('./configs/base.yaml')
     cfg_exp = OmegaConf.merge(cfg_base, OmegaConf.load(params.cfg))
     cfg_model = get_module_config(cfg_exp.model, cfg_exp.model.target)
+    cfg_model.mamba1_denoiser.params.version = cfg_exp.model.version
+    
     cfg_assets = OmegaConf.load(params.cfg_assets)
     cfg = OmegaConf.merge(cfg_exp, cfg_model, cfg_assets)
 
