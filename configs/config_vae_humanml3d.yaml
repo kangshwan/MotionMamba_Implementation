@@ -1,5 +1,5 @@
 # NAME: 1222_PELearn_VAE_MEncDec49_MdiffEnc49_bs64_clip_uncond75_01 # Experiment name
-NAME: MotionGenAI_VAE_Test # Experiment name
+NAME: VAE-v2 # Experiment name
 DEBUG: False # Debug mode
 ACCELERATOR: 'gpu' # Devices optioncal: “cpu”, “gpu”, “tpu”, “ipu”, “hpu”, “mps, “auto”
 DEVICE: [0] # Index of gpus eg. [0] or [0,1,2,3]
@@ -15,10 +15,10 @@ TRAIN:
     DIFF_PE_TYPE: mld
   DATASETS: ['humanml3d'] # Training datasets
   NUM_WORKERS: 11 # Number of workers
-  BATCH_SIZE: 128 # Size of batches
+  BATCH_SIZE: 64 # Size of batches
   START_EPOCH: 0 # Start epochMMOTIONENCODER
-  END_EPOCH: 6000 # End epoch
-  RESUME: '' # Resume training from this path
+  END_EPOCH: 4000 # End epoch
+  RESUME: './experiments/mld/VAE-v2' # Resume training from this path
   PRETRAINED_VAE: ''
   OPTIM:
     TYPE: AdamW # Optimizer type
@@ -63,7 +63,7 @@ model:
   vae: true # whether vae model
   model_type: mld # model type
   condition: 'text'
-  latent_dim: [1, 256] # latent dimension
+  latent_dim: [2, 256] # latent dimension
   ff_size: 1024 #
   num_layers: 9 # number of layers
   num_head: 4 # number of head layers
@@ -74,16 +74,16 @@ model:
 
 # Logger configuration
 LOGGER:
-  SACE_CHECKPOINT_EPOCH: 100
+  SACE_CHECKPOINT_EPOCH: 10
   LOG_EVERY_STEPS: 1
   VAL_EVERY_STEPS: 10
   TENSORBOARD: False
   WANDB:
-    PROJECT: null
-    # PROJECT: 'Motion-Latent-Diffusion/MLD'
+    # PROJECT: null
+    PROJECT: 'Motion_Mamba'
     OFFLINE: False
-    RESUME_ID: 'VAE'
+    RESUME_ID: 'VAE_v2_64'
   NEPTUNE:
-    PROJECT: 'Motion-Latent-Diffusion/MLD'
+    PROJECT: null
     API_KEY: ./api_key.txt
     RESUME_ID: 'VAE'
